@@ -3,12 +3,14 @@ package com.example;
 import java.util.HashMap;
 import java.util.Map;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.InstantiationAwareBeanPostProcessorAdapter;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -32,6 +34,8 @@ public class DemoApplication {
 	}
 }
 
+@Data
+@NoArgsConstructor
 @Component
 @ConfigurationProperties(prefix = "greeting")
 class Greetings {
@@ -39,21 +43,6 @@ class Greetings {
 	private String defaultMsg;
 	private String specialMsg;
 
-	public String getDefaultMsg() {
-		return defaultMsg;
-	}
-
-	public void setDefaultMsg(String defaultMsg) {
-		this.defaultMsg = defaultMsg;
-	}
-
-	public String getSpecialMsg() {
-		return specialMsg;
-	}
-
-	public void setSpecialMsg(String specialMsg) {
-		this.specialMsg = specialMsg;
-	}
 }
 
 @Configuration
@@ -104,13 +93,12 @@ class Hello2 {
 
 }
 
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 class Greeting {
 
-	public String message = "Hello world!";
-
-	public Greeting(String message) {
-		this.message = message;
-	}
+	private String message = "Hello world!";
 
 }
 

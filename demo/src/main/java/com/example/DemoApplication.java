@@ -10,14 +10,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.InstantiationAwareBeanPostProcessorAdapter;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -46,23 +45,25 @@ class Greetings {
 
 }
 
+// FIXME split configs
 @Configuration
-class GreetingsConfig {
+class DefaultGreetingsConfig {
 
 	@Autowired Greetings greetings;
 
-	@Bean @Primary
-	public Greeting defaultGreeting() {
-		return new Greeting(greetings.getDefaultMsg());
-	}
-
 	@Bean
+	@Profile("special")
 	public Greeting specialGreeting() {
 		return new Greeting(greetings.getSpecialMsg());
 	}
+
+	@Bean
+	@ConditionalOnMissingBean(Greeting.class)
+	public Greeting defaultGreeting() {
+		return new Greeting(greetings.getDefaultMsg());
+	}
 }
 
-@Profile({"default", "hello1"})
 @RestController
 class Hello {
 
@@ -73,23 +74,6 @@ class Hello {
 	}
 
 	@GetMapping("/hello")
-	public Greeting greet() {
-		return greeting;
-	}
-
-}
-
-@Profile("hello2")
-@RestController
-class Hello2 {
-
-	private final Greeting greeting;
-
-	public Hello2(@Qualifier("specialGreeting") Greeting greeting) {
-		this.greeting = greeting;
-	}
-
-	@GetMapping("/hello2")
 	public Greeting greet() {
 		return greeting;
 	}

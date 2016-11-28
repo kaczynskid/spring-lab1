@@ -1,7 +1,12 @@
 package com.example;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.beans.factory.config.InstantiationAwareBeanPostProcessorAdapter;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -66,5 +71,17 @@ class Greeting {
 
 	public Greeting(String message) {
 		this.message = message;
+	}
+}
+
+@Component
+class BeanLoggingPostProcessor extends InstantiationAwareBeanPostProcessorAdapter {
+
+	private static final Logger LOG = LoggerFactory.getLogger(BeanLoggingPostProcessor.class);
+
+	@Override
+	public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+		LOG.info("Created bean {} of type {}.", beanName, bean.getClass());
+		return bean;
 	}
 }

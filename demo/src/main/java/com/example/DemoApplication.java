@@ -18,6 +18,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -61,6 +62,7 @@ class GreetingsConfig {
 	}
 }
 
+@Profile({"default", "hello1"})
 @RestController
 class Hello {
 
@@ -77,6 +79,7 @@ class Hello {
 
 }
 
+@Profile("hello2")
 @RestController
 class Hello2 {
 

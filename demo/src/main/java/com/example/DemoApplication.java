@@ -1,15 +1,17 @@
 package com.example;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.config.InstantiationAwareBeanPostProcessorAdapter;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,8 +21,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class DemoApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(DemoApplication.class, args);
+		SpringApplication application = new SpringApplication(DemoApplication.class);
+		Map<String, Object> defaultProps = new HashMap<>();
+		defaultProps.put("server.port", "9000");
+		application.setDefaultProperties(defaultProps);
+		application.run(args);
 	}
+}
+
+@Configuration
+class GreetingsConfig {
 
 	@Bean @Primary
 	public Greeting defaultGreeting() {

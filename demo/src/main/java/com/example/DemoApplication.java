@@ -13,6 +13,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,14 +33,20 @@ public class DemoApplication {
 @Configuration
 class GreetingsConfig {
 
+	private final Environment environment;
+
+	public GreetingsConfig(Environment environment) {
+		this.environment = environment;
+	}
+
 	@Bean @Primary
 	public Greeting defaultGreeting() {
-		return new Greeting("Default hello!");
+		return new Greeting(environment.getProperty("greeting.default"));
 	}
 
 	@Bean
 	public Greeting specialGreeting() {
-		return new Greeting("Special hello!");
+		return new Greeting(environment.getProperty("greeting.special"));
 	}
 }
 

@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,6 +15,16 @@ public class DemoApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(DemoApplication.class, args);
+	}
+
+	@Bean @Primary
+	public Greeting defaultGreeting() {
+		return new Greeting("Default hello!");
+	}
+
+	@Bean
+	public Greeting specialGreeting() {
+		return new Greeting("Special hello!");
 	}
 }
 
@@ -38,7 +49,7 @@ class Hello2 {
 
 	private final Greeting greeting;
 
-	public Hello2(@Qualifier("defaultGreeting") Greeting greeting) {
+	public Hello2(@Qualifier("specialGreeting") Greeting greeting) {
 		this.greeting = greeting;
 	}
 
@@ -49,12 +60,9 @@ class Hello2 {
 
 }
 
-@Component("defaultGreeting")
 class Greeting {
 
 	public String message = "Hello world!";
-
-	public Greeting() { }
 
 	public Greeting(String message) {
 		this.message = message;

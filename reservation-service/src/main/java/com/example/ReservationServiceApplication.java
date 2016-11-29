@@ -16,11 +16,18 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.Around;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Pointcut;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StopWatch;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -90,6 +97,7 @@ class ReservationsController {
 
 @Slf4j
 @Configuration
+@EnableAspectJAutoProxy
 class ServiceConfig {
 
 	@Bean
@@ -109,7 +117,26 @@ class ServiceConfig {
 
 		return (ReservationsService) p;
 	}
+}
 
+@Slf4j
+@Aspect
+@Component
+class MonitorAspect {
+
+	@Pointcut("execution(* com.example.ReservationsService.*(..))")
+	private void anyServiceOperation() {}
+
+	@Around("anyServiceOperation()")
+	public Object measureExecutionTime(ProceedingJoinPoint joinPoint) throws Throwable {
+		String name = joinPoint.getSignature().getName();
+		StopWatch stopWatch = new StopWatch();
+		stopWatch.start(name);
+		Object result = joinPoint.proceed();
+		stopWatch.stop();
+		log.info("MONITOR method {} took {}ms", name, stopWatch.getLastTaskInfo().getTimeMillis());
+		return result;
+	}
 }
 
 interface ReservationsService {

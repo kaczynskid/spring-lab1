@@ -270,12 +270,11 @@ class ReservationsInitializer implements ApplicationRunner {
 			"Marek:Java", "Artur:OracleForms", "Jędrek:OracleForms")
 			.map(entry -> entry.split(":"))
 			.map(entry -> new Reservation(entry[0], entry[1]))
-			.filter(r -> reservations.findOne(r.getName()) == null)
+			.filter(r -> !reservations.findOne(r.getName()).isPresent())
 			.forEach(r-> reservations.create(r));
 
 	}
 }
-
 
 @Data
 @NoArgsConstructor

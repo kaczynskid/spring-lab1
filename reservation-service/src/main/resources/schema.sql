@@ -1,0 +1,5 @@
+
+CREATE TABLE IF NOT EXISTS reservations(
+  name VARCHAR PRIMARY KEY ,
+  lang VARCHAR NOT NULL
+);

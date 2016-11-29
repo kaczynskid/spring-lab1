@@ -7,6 +7,8 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -20,12 +22,17 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StopWatch;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -214,6 +221,56 @@ class ReservationAlreadyExists extends RuntimeException {
 		super("Reservation for name '" + name + "' already exists!");
 	}
 }
+
+@Component
+class ReservationsRepository {
+
+	private final RowMapper<Reservation> mapper = (ResultSet rs, int rowNum) -> {
+		return new Reservation(
+				rs.getString("name"),
+				rs.getString("lang")
+		);
+	};
+
+	private final JdbcTemplate jdbc;
+
+	public ReservationsRepository(JdbcTemplate jdbc) {
+		this.jdbc = jdbc;
+	}
+
+	public Reservation findOne(String name) {
+		return jdbc.queryForObject(
+			"select * from reservations r where r.name = ?",
+			new Object[] {name},
+			mapper);
+	}
+
+	public void create(Reservation reservation) {
+		jdbc.update(
+				"insert into reservations values(?, ?)",
+				reservation.getName(), reservation.getLang());
+	}
+}
+
+@Component
+class ReservationsInitializer implements ApplicationRunner {
+
+	@Autowired ReservationsRepository reservations;
+
+	@Override
+	public void run(ApplicationArguments args) throws Exception {
+		Stream.of(
+			"Tomek:PLSQL", "Tomasz:PLSQL", "Stanisław:PLSQL",
+			"Grzegorz:C++", "Rafał:C++", "Andrzej:C++", "Tom:C++",
+			"Marek:Java", "Artur:OracleForms", "Jędrek:OracleForms")
+			.map(entry -> entry.split(":"))
+			.map(entry -> new Reservation(entry[0], entry[1]))
+			.filter(r -> reservations.findOne(r.getName()) == null)
+			.forEach(r-> reservations.create(r));
+
+	}
+}
+
 
 @Data
 @NoArgsConstructor

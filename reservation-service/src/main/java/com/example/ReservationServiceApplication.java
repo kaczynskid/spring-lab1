@@ -108,19 +108,16 @@ class ServiceConfig {
 	@Bean
 	ReservationsService reservationsService(ReservationsRepository repository) {
 		ReservationsService target = new ReservationsServiceImpl(repository);
-
-		Object p = Proxy.newProxyInstance(
-				Thread.currentThread().getContextClassLoader(),
-				new Class[] { ReservationsService.class },
-				(Object proxy, Method method, Object[] args) -> {
-					log.info("BEFORE method {}", method.getName());
-					Object result = method.invoke(target, args);
-					log.info("AFTER method {}. RETURNED {}", method.getName(), result);
-					return result;
-				}
+		return (ReservationsService) Proxy.newProxyInstance(
+			Thread.currentThread().getContextClassLoader(),
+			new Class[] { ReservationsService.class },
+			(Object proxy, Method method, Object[] args) -> {
+				log.info("BEFORE method {}", method.getName());
+				Object result = method.invoke(target, args);
+				log.info("AFTER method {}. RETURNED {}", method.getName(), result);
+				return result;
+			}
 		);
-
-		return (ReservationsService) p;
 	}
 }
 
@@ -161,7 +158,7 @@ class ReservationsServiceImpl implements ReservationsService {
 
 	private final ReservationsRepository reservations;
 
-	public ReservationsServiceImpl(ReservationsRepository reservations) {
+	ReservationsServiceImpl(ReservationsRepository reservations) {
 		this.reservations = reservations;
 	}
 
@@ -197,14 +194,14 @@ class ReservationsServiceImpl implements ReservationsService {
 }
 
 class ReservationNotFound extends RuntimeException {
-	public ReservationNotFound(String name) {
+	ReservationNotFound(String name) {
 		super("Reservation for name '" + name + "' not found!");
 	}
 }
 
 @ResponseStatus(CONFLICT)
 class ReservationAlreadyExists extends RuntimeException {
-	public ReservationAlreadyExists(String name) {
+	ReservationAlreadyExists(String name) {
 		super("Reservation for name '" + name + "' already exists!");
 	}
 }
@@ -212,12 +209,11 @@ class ReservationAlreadyExists extends RuntimeException {
 @Component
 class ReservationsRepository {
 
-	private final RowMapper<Reservation> mapper = (ResultSet rs, int rowNum) -> {
-		return new Reservation(
-				rs.getString("name"),
-				rs.getString("lang")
+	private final RowMapper<Reservation> mapper = (ResultSet rs, int rowNum) ->
+		new Reservation(
+			rs.getString("name"),
+			rs.getString("lang")
 		);
-	};
 
 	private final JdbcTemplate jdbc;
 
@@ -225,32 +221,32 @@ class ReservationsRepository {
 		this.jdbc = jdbc;
 	}
 
-	public List<Reservation> findAll() {
+	List<Reservation> findAll() {
 		return jdbc.query(
 			"select * from reservations",
 			mapper);
 	}
 
-	public Optional<Reservation> findOne(String name) {
+	Optional<Reservation> findOne(String name) {
 		return jdbc.query(
 			"select * from reservations r where r.name = ?",
 			new Object[] {name},
 			mapper).stream().findFirst();
 	}
 
-	public void create(Reservation reservation) {
+	void create(Reservation reservation) {
 		jdbc.update(
 			"insert into reservations values(?, ?)",
 			reservation.getName(), reservation.getLang());
 	}
 
-	public void update(String name, Reservation reservation) {
+	void update(String name, Reservation reservation) {
 		jdbc.update(
 			"update reservations set name=?, lang=? where name=?",
 			reservation.getName(), reservation.getLang(), name);
 	}
 
-	public void delete(String name) {
+	void delete(String name) {
 		jdbc.update(
 			"delete from reservations where name=?",
 			name);

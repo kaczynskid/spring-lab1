@@ -8,10 +8,8 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import lombok.AllArgsConstructor;
@@ -108,8 +106,8 @@ class ReservationsController {
 class ServiceConfig {
 
 	@Bean
-	ReservationsService reservationsService() {
-		ReservationsService target = new ReservationsServiceImpl();
+	ReservationsService reservationsService(ReservationsRepository repository) {
+		ReservationsService target = new ReservationsServiceImpl(repository);
 
 		Object p = Proxy.newProxyInstance(
 				Thread.currentThread().getContextClassLoader(),
@@ -161,25 +159,18 @@ interface ReservationsService {
 
 class ReservationsServiceImpl implements ReservationsService {
 
-	private List<Reservation> reservations = Stream.of(
-			"Tomek:PLSQL", "Tomasz:PLSQL", "Stanisław:PLSQL",
-			"Grzegorz:C++", "Rafał:C++", "Andrzej:C++", "Tom:C++",
-			"Marek:Java", "Artur:OracleForms", "Jędrek:OracleForms")
-			.map(entry -> entry.split(":"))
-			.map(entry -> new Reservation(entry[0], entry[1]))
-			.collect(Collectors.toList());
+	private final ReservationsRepository reservations;
+
+	public ReservationsServiceImpl(ReservationsRepository reservations) {
+		this.reservations = reservations;
+	}
 
 	public List<Reservation> findAll() {
-		return reservations;
+		return reservations.findAll();
 	}
 
 	public Optional<Reservation> findOne(String name) {
-		for (Reservation reservation : reservations) {
-			if (reservation.getName().equals(name)) {
-				return Optional.of(reservation);
-			}
-		}
-		return Optional.empty();
+		return reservations.findOne(name);
 	}
 
 	public Reservation create(Reservation reservation) {
@@ -187,25 +178,21 @@ class ReservationsServiceImpl implements ReservationsService {
 			.ifPresent(existing -> {
 				throw new ReservationAlreadyExists(existing.getName());
 			});
-		reservations.add(reservation);
+		reservations.create(reservation);
 		return reservation;
 	}
 
 	public Reservation update(String name, Reservation reservation) {
 		return findOne(name)
 			.map(existing -> {
-				existing.setName(reservation.getName());
-				existing.setLang(reservation.getLang());
+				reservations.update(name, reservation);
 				return existing;
 			})
 			.orElseThrow(() -> new ReservationNotFound(name));
 	}
 
 	public void delete(String name) {
-		findOne(name)
-			.ifPresent(existing -> {
-				reservations.remove(existing);
-			});
+		reservations.delete(name);
 	}
 }
 
@@ -238,17 +225,35 @@ class ReservationsRepository {
 		this.jdbc = jdbc;
 	}
 
-	public Reservation findOne(String name) {
-		return jdbc.queryForObject(
+	public List<Reservation> findAll() {
+		return jdbc.query(
+			"select * from reservations",
+			mapper);
+	}
+
+	public Optional<Reservation> findOne(String name) {
+		return jdbc.query(
 			"select * from reservations r where r.name = ?",
 			new Object[] {name},
-			mapper);
+			mapper).stream().findFirst();
 	}
 
 	public void create(Reservation reservation) {
 		jdbc.update(
-				"insert into reservations values(?, ?)",
-				reservation.getName(), reservation.getLang());
+			"insert into reservations values(?, ?)",
+			reservation.getName(), reservation.getLang());
+	}
+
+	public void update(String name, Reservation reservation) {
+		jdbc.update(
+			"update reservations set name=?, lang=? where name=?",
+			reservation.getName(), reservation.getLang(), name);
+	}
+
+	public void delete(String name) {
+		jdbc.update(
+			"delete from reservations where name=?",
+			name);
 	}
 }
 

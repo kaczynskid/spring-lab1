@@ -230,8 +230,9 @@ class ReservationsRepository {
 	Optional<Reservation> findOne(String name) {
 		return jdbc.query(
 			"select * from reservations r where r.name = ?",
-			new Object[] {name},
-			mapper).stream().findFirst();
+			mapper,
+			name
+		).stream().findFirst();
 	}
 
 	void create(Reservation reservation) {

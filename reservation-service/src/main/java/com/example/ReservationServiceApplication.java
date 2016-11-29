@@ -24,14 +24,33 @@ public class ReservationServiceApplication {
 @RestController
 class ReservationsController {
 
-	@GetMapping("/list")
+	List<Reservation> reservations = Stream.of(
+			"Tomek:PLSQL", "Tomasz:PLSQL", "Stanisław:PLSQL",
+			"Grzegorz:C++", "Rafał:C++", "Andrzej:C++", "Tom:C++",
+			"Marek:Java", "Artur:OracleForms", "Jędrek:OracleForms")
+			.map(entry -> entry.split(":"))
+			.map(entry -> new Reservation(entry[0], entry[1]))
+			.collect(Collectors.toList());
+
+	@GetMapping("/reservations")
 	List<Reservation> list() {
-		return Stream.of("Tomek:PLSQL", "Tomek:PLSQL", "Stanisław:PLSQL",
-				"Grzegorz:C++", "Rafał:C++", "Andrzej:C++", "Tomek:C++",
-				"Marek:Java", "Artur:OracleForms", "Jędrek:OracleForms")
-				.map(entry -> entry.split(":"))
-				.map(entry -> new Reservation(entry[0], entry[1]))
-				.collect(Collectors.toList());
+		return reservations;
+	}
+
+	void create(Reservation reservation) {
+
+	}
+
+	Reservation get(String name) {
+		return null;
+	}
+
+	void update(Reservation reservation) {
+
+	}
+
+	void delete(String name) {
+
 	}
 }
 

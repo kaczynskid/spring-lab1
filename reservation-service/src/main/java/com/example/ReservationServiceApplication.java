@@ -5,6 +5,8 @@ import static org.springframework.http.MediaType.*;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -13,6 +15,7 @@ import java.util.stream.Stream;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -85,12 +88,26 @@ class ReservationsController {
 	}
 }
 
+@Slf4j
 @Configuration
 class ServiceConfig {
 
 	@Bean
 	ReservationsService reservationsService() {
-		return new ReservationsServiceImpl();
+		ReservationsService target = new ReservationsServiceImpl();
+
+		Object p = Proxy.newProxyInstance(
+				Thread.currentThread().getContextClassLoader(),
+				new Class[] { ReservationsService.class },
+				(Object proxy, Method method, Object[] args) -> {
+					log.info("BEFORE method {}", method.getName());
+					Object result = method.invoke(target, args);
+					log.info("AFTER method {}. RETURNED {}", method.getName(), result);
+					return result;
+				}
+		);
+
+		return (ReservationsService) p;
 	}
 
 }

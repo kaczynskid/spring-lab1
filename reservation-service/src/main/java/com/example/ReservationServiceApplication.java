@@ -1,8 +1,12 @@
 package com.example;
 
+import static org.springframework.http.HttpStatus.*;
 import static org.springframework.http.MediaType.*;
 
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -11,14 +15,17 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @SpringBootApplication
@@ -45,13 +52,19 @@ class ReservationsController {
 	}
 
 	@PostMapping(consumes = APPLICATION_JSON_VALUE)
+	@ResponseStatus(CREATED)
 	void create(@RequestBody Reservation reservation) {
 		reservations.create(reservation);
 	}
 
 	@GetMapping(path = "/{name}", produces = APPLICATION_JSON_VALUE)
-	Reservation get(@PathVariable("name") String name) {
-		return reservations.findOne(name);
+	ResponseEntity<?> get(@PathVariable("name") String name) {
+		Optional<Reservation> reservation = reservations.findOne(name);
+		if (reservation.isPresent()) {
+			return ResponseEntity.ok(reservation.get());
+		} else {
+			return ResponseEntity.status(NOT_FOUND).build();
+		}
 	}
 
 	@PutMapping(path = "/{name}", consumes = APPLICATION_JSON_VALUE)
@@ -60,15 +73,21 @@ class ReservationsController {
 	}
 
 	@DeleteMapping("/{name}")
+	@ResponseStatus(NO_CONTENT)
 	void delete(@PathVariable("name") String name) {
 		reservations.delete(name);
+	}
+
+	@ExceptionHandler(ReservationNotFound.class)
+	void handleReservationNotFound(ReservationNotFound ex, HttpServletResponse response) throws IOException {
+		response.sendError(NOT_FOUND.value(), ex.getMessage());
 	}
 }
 
 @Component
 class ReservationsService {
 
-	List<Reservation> reservations = Stream.of(
+	private List<Reservation> reservations = Stream.of(
 			"Tomek:PLSQL", "Tomasz:PLSQL", "Stanisław:PLSQL",
 			"Grzegorz:C++", "Rafał:C++", "Andrzej:C++", "Tom:C++",
 			"Marek:Java", "Artur:OracleForms", "Jędrek:OracleForms")
@@ -80,32 +99,52 @@ class ReservationsService {
 		return reservations;
 	}
 
-	Reservation findOne(String name) {
+	Optional<Reservation> findOne(String name) {
 		for (Reservation reservation : reservations) {
 			if (reservation.getName().equals(name)) {
-				return reservation;
+				return Optional.of(reservation);
 			}
 		}
-		return null;
+		return Optional.empty();
 	}
 
-	void create(Reservation reservation) {
+	Reservation create(Reservation reservation) {
+		findOne(reservation.getName())
+			.ifPresent(existing -> {
+				throw new ReservationAlreadyExists(existing.getName());
+			});
 		reservations.add(reservation);
+		return reservation;
 	}
 
-	void update(String name, Reservation reservation) {
-		Reservation existing = findOne(name);
-		if (existing != null) {
-			existing.setName(reservation.getName());
-			existing.setLang(reservation.getLang());
-		}
+	Reservation update(String name, Reservation reservation) {
+		return findOne(name)
+			.map(existing -> {
+				existing.setName(reservation.getName());
+				existing.setLang(reservation.getLang());
+				return existing;
+			})
+			.orElseThrow(() -> new ReservationNotFound(name));
 	}
 
 	void delete(String name) {
-		Reservation reservation = findOne(name);
-		if (reservation != null) {
-			reservations.remove(reservation);
-		}
+		findOne(name)
+			.ifPresent(existing -> {
+				reservations.remove(existing);
+			});
+	}
+}
+
+class ReservationNotFound extends RuntimeException {
+	public ReservationNotFound(String name) {
+		super("Reservation for name '" + name + "' not found!");
+	}
+}
+
+@ResponseStatus(CONFLICT)
+class ReservationAlreadyExists extends RuntimeException {
+	public ReservationAlreadyExists(String name) {
+		super("Reservation for name '" + name + "' already exists!");
 	}
 }
 

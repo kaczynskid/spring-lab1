@@ -10,7 +10,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @SpringBootApplication
@@ -37,20 +42,40 @@ class ReservationsController {
 		return reservations;
 	}
 
-	void create(Reservation reservation) {
-
+	@PostMapping("/reservations")
+	void create(@RequestBody Reservation reservation) {
+		reservations.add(reservation);
 	}
 
-	Reservation get(String name) {
+	@GetMapping("/reservations/{name}")
+	Reservation get(@PathVariable("name") String name) {
+		return findOne(name);
+	}
+
+	@PutMapping("/reservations/{name}")
+	void update(@PathVariable("name") String name, @RequestBody Reservation reservation) {
+		Reservation existing = findOne(name);
+		if (existing != null) {
+			existing.setName(reservation.getName());
+			existing.setLang(reservation.getLang());
+		}
+	}
+
+	@DeleteMapping("/reservations/{name}")
+	void delete(@PathVariable("name") String name) {
+		Reservation reservation = findOne(name);
+		if (reservation != null) {
+			reservations.remove(reservation);
+		}
+	}
+
+	private Reservation findOne(String name) {
+		for (Reservation reservation : reservations) {
+			if (reservation.getName().equals(name)) {
+				return reservation;
+			}
+		}
 		return null;
-	}
-
-	void update(Reservation reservation) {
-
-	}
-
-	void delete(String name) {
-
 	}
 }
 

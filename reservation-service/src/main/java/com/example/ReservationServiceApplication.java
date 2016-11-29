@@ -2,18 +2,23 @@ package com.example;
 
 import static org.springframework.http.HttpStatus.*;
 import static org.springframework.http.MediaType.*;
-import static org.springframework.transaction.annotation.Propagation.SUPPORTS;
+import static org.springframework.transaction.annotation.Propagation.*;
 
+import javax.persistence.Entity;
+import javax.persistence.EntityManager;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.PersistenceContext;
+import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.sql.ResultSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,10 +35,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StopWatch;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -76,9 +78,9 @@ class ReservationsController {
 		reservations.create(reservation);
 	}
 
-	@GetMapping(path = "/{name}", produces = APPLICATION_JSON_VALUE)
-	ResponseEntity<?> get(@PathVariable("name") String name) {
-		Optional<Reservation> reservation = reservations.findOne(name);
+	@GetMapping(path = "/{id}", produces = APPLICATION_JSON_VALUE)
+	ResponseEntity<?> get(@PathVariable("id") Long id) {
+		Optional<Reservation> reservation = reservations.findOne(id);
 		if (reservation.isPresent()) {
 			return ResponseEntity.ok(reservation.get());
 		} else {
@@ -86,15 +88,15 @@ class ReservationsController {
 		}
 	}
 
-	@PutMapping(path = "/{name}", consumes = APPLICATION_JSON_VALUE)
-	void update(@PathVariable("name") String name, @RequestBody Reservation reservation) {
-		reservations.update(name, reservation);
+	@PutMapping(path = "/{id}", consumes = APPLICATION_JSON_VALUE)
+	void update(@PathVariable("id") Long id, @RequestBody Reservation reservation) {
+		reservations.update(id, reservation);
 	}
 
-	@DeleteMapping("/{name}")
+	@DeleteMapping("/{id}")
 	@ResponseStatus(NO_CONTENT)
-	void delete(@PathVariable("name") String name) {
-		reservations.delete(name);
+	void delete(@PathVariable("id") Long id) {
+		reservations.delete(id);
 	}
 
 	@ExceptionHandler(ReservationNotFound.class)
@@ -148,13 +150,13 @@ interface ReservationsService {
 
 	List<Reservation> findAll();
 
-	Optional<Reservation> findOne(String name);
+	Optional<Reservation> findOne(Long id);
 
 	Reservation create(Reservation reservation);
 
-	Reservation update(String name, Reservation reservation);
+	Reservation update(Long id, Reservation reservation);
 
-	void delete(String name);
+	void delete(Long id);
 }
 
 @Transactional
@@ -172,12 +174,12 @@ class ReservationsServiceImpl implements ReservationsService {
 	}
 
 	@Transactional(propagation = SUPPORTS, readOnly = true)
-	public Optional<Reservation> findOne(String name) {
-		return reservations.findOne(name);
+	public Optional<Reservation> findOne(Long id) {
+		return reservations.findOne(id);
 	}
 
 	public Reservation create(Reservation reservation) {
-		findOne(reservation.getName())
+		reservations.findByName(reservation.getName())
 			.ifPresent(existing -> {
 				throw new ReservationAlreadyExists(existing.getName());
 			});
@@ -185,23 +187,23 @@ class ReservationsServiceImpl implements ReservationsService {
 		return reservation;
 	}
 
-	public Reservation update(String name, Reservation reservation) {
-		return findOne(name)
+	public Reservation update(Long id, Reservation reservation) {
+		return findOne(id)
 			.map(existing -> {
-				reservations.update(name, reservation);
+				reservations.update(id, reservation);
 				return existing;
 			})
-			.orElseThrow(() -> new ReservationNotFound(name));
+			.orElseThrow(() -> new ReservationNotFound(id));
 	}
 
-	public void delete(String name) {
-		reservations.delete(name);
+	public void delete(Long id) {
+		reservations.delete(id);
 	}
 }
 
 class ReservationNotFound extends RuntimeException {
-	ReservationNotFound(String name) {
-		super("Reservation for name '" + name + "' not found!");
+	ReservationNotFound(Long id) {
+		super("Reservation for id '" + id + "' not found!");
 	}
 }
 
@@ -215,48 +217,39 @@ class ReservationAlreadyExists extends RuntimeException {
 @Component
 class ReservationsRepository {
 
-	private final RowMapper<Reservation> mapper = (ResultSet rs, int rowNum) ->
-		new Reservation(
-			rs.getString("name"),
-			rs.getString("lang")
-		);
-
-	private final JdbcTemplate jdbc;
-
-	public ReservationsRepository(JdbcTemplate jdbc) {
-		this.jdbc = jdbc;
-	}
+	@PersistenceContext
+	private EntityManager jpa;
 
 	List<Reservation> findAll() {
-		return jdbc.query(
-			"select * from reservations",
-			mapper);
+		return jpa
+			.createQuery("from Reservation")
+			.getResultList();
 	}
 
-	Optional<Reservation> findOne(String name) {
-		return jdbc.query(
-			"select * from reservations r where r.name = ?",
-			mapper,
-			name
-		).stream().findFirst();
+	Optional<Reservation> findOne(Long id) {
+		return Optional.ofNullable(jpa.find(Reservation.class, id));
+	}
+
+	Optional<Reservation> findByName(String name) {
+		return jpa
+				.createQuery("from Reservation where name = :name")
+				.setParameter("name", name)
+				.getResultList()
+				.stream().findFirst();
 	}
 
 	void create(Reservation reservation) {
-		jdbc.update(
-			"insert into reservations values(?, ?)",
-			reservation.getName(), reservation.getLang());
+		jpa.persist(reservation);
 	}
 
-	void update(String name, Reservation reservation) {
-		jdbc.update(
-			"update reservations set name=?, lang=? where name=?",
-			reservation.getName(), reservation.getLang(), name);
+	void update(Long id, Reservation reservation) {
+		reservation.setId(id);
+		jpa.persist(reservation);
 	}
 
-	void delete(String name) {
-		jdbc.update(
-			"delete from reservations where name=?",
-			name);
+	void delete(Long id) {
+		findOne(id)
+			.ifPresent(existing -> jpa.remove(existing));
 	}
 }
 
@@ -266,6 +259,7 @@ class ReservationsInitializer implements ApplicationRunner {
 	@Autowired ReservationsRepository reservations;
 
 	@Override
+	@Transactional
 	public void run(ApplicationArguments args) throws Exception {
 		Stream.of(
 			"Tomek:PLSQL", "Tomasz:PLSQL", "Stanisław:PLSQL",
@@ -273,19 +267,29 @@ class ReservationsInitializer implements ApplicationRunner {
 			"Marek:Java", "Artur:OracleForms", "Jędrek:OracleForms")
 			.map(entry -> entry.split(":"))
 			.map(entry -> new Reservation(entry[0], entry[1]))
-			.filter(r -> !reservations.findOne(r.getName()).isPresent())
+			.filter(r -> !reservations.findByName(r.getName()).isPresent())
 			.forEach(r-> reservations.create(r));
 
 	}
 }
 
+@Entity
+@Table(uniqueConstraints = {
+	@UniqueConstraint(columnNames = "name")
+})
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 class Reservation {
+
+	@Id @GeneratedValue
+	private Long id;
 
 	private String name;
 
 	private String lang;
 
+	Reservation(String name, String lang) {
+		this.name = name;
+		this.lang = lang;
+	}
 }

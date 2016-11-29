@@ -15,8 +15,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -84,8 +85,30 @@ class ReservationsController {
 	}
 }
 
-@Component
-class ReservationsService {
+@Configuration
+class ServiceConfig {
+
+	@Bean
+	ReservationsService reservationsService() {
+		return new ReservationsServiceImpl();
+	}
+
+}
+
+interface ReservationsService {
+
+	List<Reservation> findAll();
+
+	Optional<Reservation> findOne(String name);
+
+	Reservation create(Reservation reservation);
+
+	Reservation update(String name, Reservation reservation);
+
+	void delete(String name);
+}
+
+class ReservationsServiceImpl implements ReservationsService {
 
 	private List<Reservation> reservations = Stream.of(
 			"Tomek:PLSQL", "Tomasz:PLSQL", "Stanisław:PLSQL",
@@ -95,11 +118,11 @@ class ReservationsService {
 			.map(entry -> new Reservation(entry[0], entry[1]))
 			.collect(Collectors.toList());
 
-	List<Reservation> findAll() {
+	public List<Reservation> findAll() {
 		return reservations;
 	}
 
-	Optional<Reservation> findOne(String name) {
+	public Optional<Reservation> findOne(String name) {
 		for (Reservation reservation : reservations) {
 			if (reservation.getName().equals(name)) {
 				return Optional.of(reservation);
@@ -108,7 +131,7 @@ class ReservationsService {
 		return Optional.empty();
 	}
 
-	Reservation create(Reservation reservation) {
+	public Reservation create(Reservation reservation) {
 		findOne(reservation.getName())
 			.ifPresent(existing -> {
 				throw new ReservationAlreadyExists(existing.getName());
@@ -117,7 +140,7 @@ class ReservationsService {
 		return reservation;
 	}
 
-	Reservation update(String name, Reservation reservation) {
+	public Reservation update(String name, Reservation reservation) {
 		return findOne(name)
 			.map(existing -> {
 				existing.setName(reservation.getName());
@@ -127,7 +150,7 @@ class ReservationsService {
 			.orElseThrow(() -> new ReservationNotFound(name));
 	}
 
-	void delete(String name) {
+	public void delete(String name) {
 		findOne(name)
 			.ifPresent(existing -> {
 				reservations.remove(existing);

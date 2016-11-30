@@ -8,7 +8,6 @@ import javax.persistence.Entity;
 import javax.persistence.EntityManager;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
-import javax.persistence.PersistenceContext;
 import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
 import javax.servlet.http.HttpServletResponse;
@@ -34,6 +33,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -175,7 +176,7 @@ class ReservationsServiceImpl implements ReservationsService {
 
 	@Transactional(propagation = SUPPORTS, readOnly = true)
 	public Optional<Reservation> findOne(Long id) {
-		return reservations.findOne(id);
+		return Optional.ofNullable(reservations.findOne(id));
 	}
 
 	public Reservation create(Reservation reservation) {
@@ -183,14 +184,16 @@ class ReservationsServiceImpl implements ReservationsService {
 			.ifPresent(existing -> {
 				throw new ReservationAlreadyExists(existing.getName());
 			});
-		reservations.create(reservation);
+		reservations.save(reservation);
 		return reservation;
 	}
 
 	public Reservation update(Long id, Reservation reservation) {
 		return findOne(id)
 			.map(existing -> {
-				reservations.update(id, reservation);
+				existing.setName(reservation.getName());
+				existing.setLang(reservation.getLang());
+				reservations.save(existing);
 				return existing;
 			})
 			.orElseThrow(() -> new ReservationNotFound(id));
@@ -214,43 +217,14 @@ class ReservationAlreadyExists extends RuntimeException {
 	}
 }
 
-@Component
-class ReservationsRepository {
+@Configuration
+@EnableJpaRepositories
+class RepositoryConfig {
+}
 
-	@PersistenceContext
-	private EntityManager jpa;
+interface ReservationsRepository extends JpaRepository<Reservation, Long> {
 
-	List<Reservation> findAll() {
-		return jpa
-			.createQuery("from Reservation")
-			.getResultList();
-	}
-
-	Optional<Reservation> findOne(Long id) {
-		return Optional.ofNullable(jpa.find(Reservation.class, id));
-	}
-
-	Optional<Reservation> findByName(String name) {
-		return jpa
-				.createQuery("from Reservation where name = :name")
-				.setParameter("name", name)
-				.getResultList()
-				.stream().findFirst();
-	}
-
-	void create(Reservation reservation) {
-		jpa.persist(reservation);
-	}
-
-	void update(Long id, Reservation reservation) {
-		reservation.setId(id);
-		jpa.persist(reservation);
-	}
-
-	void delete(Long id) {
-		findOne(id)
-			.ifPresent(existing -> jpa.remove(existing));
-	}
+	Optional<Reservation> findByName(String name);
 }
 
 @Component
@@ -268,7 +242,7 @@ class ReservationsInitializer implements ApplicationRunner {
 			.map(entry -> entry.split(":"))
 			.map(entry -> new Reservation(entry[0], entry[1]))
 			.filter(r -> !reservations.findByName(r.getName()).isPresent())
-			.forEach(r-> reservations.create(r));
+			.forEach(r-> reservations.save(r));
 
 	}
 }

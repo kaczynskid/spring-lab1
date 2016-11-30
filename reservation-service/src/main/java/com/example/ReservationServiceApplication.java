@@ -1,14 +1,10 @@
 package com.example;
 
+import static com.example.ReservationsRepository.Spec.*;
 import static org.springframework.http.HttpStatus.*;
 import static org.springframework.http.MediaType.*;
 import static org.springframework.transaction.annotation.Propagation.*;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.Table;
-import javax.persistence.UniqueConstraint;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -17,8 +13,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.querydsl.core.BooleanBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -32,10 +27,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
-import org.springframework.data.repository.query.Param;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -71,8 +63,10 @@ class ReservationsController {
 	}
 
 	@GetMapping(produces = APPLICATION_JSON_VALUE)
-	List<Reservation> list(@RequestParam(name = "lang", required = false) String lang) {
-		return reservations.findAll(lang);
+	List<Reservation> list(
+			@RequestParam(name = "name", required = false) String name,
+			@RequestParam(name = "lang", required = false) String lang) {
+		return reservations.findAll(name, lang);
 	}
 
 	@PostMapping(consumes = APPLICATION_JSON_VALUE)
@@ -151,7 +145,7 @@ class MonitorAspect {
 
 interface ReservationsService {
 
-	List<Reservation> findAll(String lang);
+	List<Reservation> findAll(String name, String lang);
 
 	Optional<Reservation> findOne(Long id);
 
@@ -172,11 +166,10 @@ class ReservationsServiceImpl implements ReservationsService {
 	}
 
 	@Transactional(propagation = SUPPORTS, readOnly = true)
-	public List<Reservation> findAll(String lang) {
-		if (lang != null) {
-			return reservations.findByLang(lang);
-		}
-		return reservations.findAll();
+	public List<Reservation> findAll(String name, String lang) {
+		return reservations.findAll(new BooleanBuilder()
+				.and(withName(name))
+				.and(withLang(lang)));
 	}
 
 	@Transactional(propagation = SUPPORTS, readOnly = true)
@@ -227,14 +220,6 @@ class ReservationAlreadyExists extends RuntimeException {
 class RepositoryConfig {
 }
 
-interface ReservationsRepository extends JpaRepository<Reservation, Long> {
-
-	Optional<Reservation> findByName(String name);
-
-	@Query("from Reservation where lang = :lang")
-	List<Reservation> findByLang(@Param("lang") String lang);
-}
-
 @Component
 class ReservationsInitializer implements ApplicationRunner {
 
@@ -255,23 +240,3 @@ class ReservationsInitializer implements ApplicationRunner {
 	}
 }
 
-@Entity
-@Table(uniqueConstraints = {
-	@UniqueConstraint(columnNames = "name")
-})
-@Data
-@NoArgsConstructor
-class Reservation {
-
-	@Id @GeneratedValue
-	private Long id;
-
-	private String name;
-
-	private String lang;
-
-	Reservation(String name, String lang) {
-		this.name = name;
-		this.lang = lang;
-	}
-}

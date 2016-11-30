@@ -54,7 +54,7 @@ public class ReservationServiceApplication {
 }
 
 @RestController
-@RequestMapping("/reservations")
+@RequestMapping("/custom-reservations")
 class ReservationsController {
 
 	private final ReservationsService reservations;
@@ -220,6 +220,7 @@ class ReservationAlreadyExists extends RuntimeException {
 
 @Configuration
 @EnableJpaRepositories
+
 class RepositoryConfig {
 }
 

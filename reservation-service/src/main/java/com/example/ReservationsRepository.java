@@ -9,7 +9,11 @@ import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.querydsl.QueryDslPredicateExecutor;
+import org.springframework.data.repository.query.Param;
+import org.springframework.data.rest.core.annotation.RepositoryRestResource;
+import org.springframework.data.rest.core.annotation.RestResource;
 
+@RepositoryRestResource
 interface ReservationsRepository extends JpaRepository<Reservation, Long>,
 		QueryDslPredicateExecutor<Reservation>, LegacyReservationsRepository {
 
@@ -28,9 +32,12 @@ interface ReservationsRepository extends JpaRepository<Reservation, Long>,
 		return Optional.ofNullable(findOne(id));
 	}
 
-	Optional<Reservation> findByName(String name);
+	Optional<Reservation> findByName(@Param("name") String name);
 
 	@Override
 	List<Reservation> findAll(Predicate predicate);
 
+	@Override
+	@RestResource(exported = false)
+	void delete(Long id);
 }

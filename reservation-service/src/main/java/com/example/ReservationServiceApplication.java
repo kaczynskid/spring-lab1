@@ -9,7 +9,6 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -27,6 +26,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -63,10 +64,11 @@ class ReservationsController {
 	}
 
 	@GetMapping(produces = APPLICATION_JSON_VALUE)
-	List<Reservation> list(
+	Page<Reservation> list(
 			@RequestParam(name = "name", required = false) String name,
-			@RequestParam(name = "lang", required = false) String lang) {
-		return reservations.findAll(name, lang);
+			@RequestParam(name = "lang", required = false) String lang,
+			Pageable pageable) {
+		return reservations.findAll(name, lang, pageable);
 	}
 
 	@PostMapping(consumes = APPLICATION_JSON_VALUE)
@@ -145,7 +147,7 @@ class MonitorAspect {
 
 interface ReservationsService {
 
-	List<Reservation> findAll(String name, String lang);
+	Page<Reservation> findAll(String name, String lang, Pageable pageable);
 
 	Optional<Reservation> findOne(Long id);
 
@@ -166,10 +168,11 @@ class ReservationsServiceImpl implements ReservationsService {
 	}
 
 	@Transactional(propagation = SUPPORTS, readOnly = true)
-	public List<Reservation> findAll(String name, String lang) {
+	public Page<Reservation> findAll(String name, String lang, Pageable pageable) {
 		return reservations.findAll(new BooleanBuilder()
 				.and(withName(name))
-				.and(withLang(lang)));
+				.and(withLang(lang)),
+				pageable);
 	}
 
 	@Transactional(propagation = SUPPORTS, readOnly = true)

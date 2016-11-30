@@ -32,4 +32,5 @@ interface ReservationsRepository extends JpaRepository<Reservation, Long>,
 
 	@Override
 	List<Reservation> findAll(Predicate predicate);
+
 }

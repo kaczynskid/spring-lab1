@@ -5,7 +5,6 @@ import static org.springframework.http.MediaType.*;
 import static org.springframework.transaction.annotation.Propagation.*;
 
 import javax.persistence.Entity;
-import javax.persistence.EntityManager;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.Table;
@@ -34,7 +33,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.data.repository.query.Param;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +48,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -69,8 +71,8 @@ class ReservationsController {
 	}
 
 	@GetMapping(produces = APPLICATION_JSON_VALUE)
-	List<Reservation> list() {
-		return reservations.findAll();
+	List<Reservation> list(@RequestParam(name = "lang", required = false) String lang) {
+		return reservations.findAll(lang);
 	}
 
 	@PostMapping(consumes = APPLICATION_JSON_VALUE)
@@ -149,7 +151,7 @@ class MonitorAspect {
 
 interface ReservationsService {
 
-	List<Reservation> findAll();
+	List<Reservation> findAll(String lang);
 
 	Optional<Reservation> findOne(Long id);
 
@@ -170,7 +172,10 @@ class ReservationsServiceImpl implements ReservationsService {
 	}
 
 	@Transactional(propagation = SUPPORTS, readOnly = true)
-	public List<Reservation> findAll() {
+	public List<Reservation> findAll(String lang) {
+		if (lang != null) {
+			return reservations.findByLang(lang);
+		}
 		return reservations.findAll();
 	}
 
@@ -225,6 +230,9 @@ class RepositoryConfig {
 interface ReservationsRepository extends JpaRepository<Reservation, Long> {
 
 	Optional<Reservation> findByName(String name);
+
+	@Query("from Reservation where lang = :lang")
+	List<Reservation> findByLang(@Param("lang") String lang);
 }
 
 @Component

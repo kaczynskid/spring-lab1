@@ -188,17 +188,22 @@ class ReservationsServiceImpl implements ReservationsService {
 	}
 
 	public Reservation create(Reservation reservation) {
-		reservations.findByName(reservation.getName())
+		validateNotExists(reservation.getName());
+		reservations.save(reservation);
+		return reservation;
+	}
+
+	private void validateNotExists(String name) {
+		reservations.findByName(name)
 			.ifPresent(existing -> {
 				throw new ReservationAlreadyExists(existing.getName());
 			});
-		reservations.save(reservation);
-		return reservation;
 	}
 
 	public Reservation update(Long id, Reservation reservation) {
 		return findOne(id)
 			.map(existing -> {
+				validateNotExists(reservation.getName());
 				existing.setName(reservation.getName());
 				existing.setLang(reservation.getLang());
 				reservations.save(existing);
